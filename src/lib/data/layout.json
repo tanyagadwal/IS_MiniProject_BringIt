@@ -3,36 +3,6 @@
     "tracking": {
       "widget_meta": {
         "name": "Static Banner",
-        "title": "paan corner banner",
-        "minimum_time_between_impressions": 5000,
-        "variation_id": null,
-        "revision_id": "11581611",
-        "id": "7f5a5242-5b1e-419f-bdc5-8e55f616e413"
-      }
-    },
-    "type": 55,
-    "action": {
-      "default_uri": "grofers://web-external?web_url=/paan"
-    },
-    "grid_span": 12,
-    "data": {
-      "image": "https://cdn.grofers.com/layout-engine/2022-05/new-mweb-1.jpg",
-      "id": "paan corner banner"
-    },
-    "layout_config": {
-      "max_width": 1280,
-      "margin_right": 0,
-      "margin_top": 0,
-      "margin_left": 0,
-      "border_radius": -1,
-      "aspect_ratio": 2.43,
-      "margin_bottom": 0
-    }
-  },
-  {
-    "tracking": {
-      "widget_meta": {
-        "name": "Static Banner",
         "title": "pb_mweb_downloadapp",
         "minimum_time_between_impressions": 5000,
         "variation_id": null,

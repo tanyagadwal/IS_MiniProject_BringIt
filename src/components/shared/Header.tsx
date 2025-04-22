@@ -1,15 +1,19 @@
-import { FaRegUser } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
-import { CartButton } from '../cart';
-import LocationPicker from '../LocationPicker';
-import SearchBox from '../SearchBox';
+import React, { useState } from "react";
+import { FaRegUser } from "react-icons/fa";
+import { Link } from "react-router-dom";
+import { CartButton } from "../cart";
+import LocationPicker from "../LocationPicker";
+import SearchBox from "../SearchBox";
+import LoginForm from "./LoginForm";
 
 const Header = () => {
+  const [showLogin, setShowLogin] = useState(false);
+
   return (
     <header className="_nav px-2 sm:px-0">
       <div className="_header sm:flex h-full">
         <div className="hidden sm:flex max-w-[150px] md:max-w-[178px] w-full cursor-pointer sm:hover:bg-gray-50 items-center justify-center border-r _border-light">
-          <Link to={'/'}>
+          <Link to={"/"}>
             <span className="font-black text-[32px] md:text-[38px] text-yellow-400 tracking-tight">
               bring<strong className="text-green-600">It</strong>
             </span>
@@ -21,7 +25,10 @@ const Header = () => {
         <div className="flex-1 relative _header_search">
           <SearchBox />
         </div>
-        <div className="flex items-center _header_login justify-center cursor-pointer sm:hover:bg-gray-50 max-w-[80px] lg:max-w-[160px] w-full ">
+        <div
+          className="flex items-center _header_login justify-center cursor-pointer sm:hover:bg-gray-50 max-w-[80px] lg:max-w-[160px] w-full"
+          onClick={() => setShowLogin(true)}
+        >
           <span className="font-medium _text-default hidden sm:block">
             Login
           </span>
@@ -33,6 +40,8 @@ const Header = () => {
           <CartButton />
         </div>
       </div>
+
+      {showLogin && <LoginForm onClose={() => setShowLogin(false)} />}
     </header>
   );
 };
