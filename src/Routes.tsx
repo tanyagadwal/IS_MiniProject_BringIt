@@ -1,9 +1,10 @@
-import React, { Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { Home, Error404 } from './pages';
-import { Loader } from './components/shared';
-import Layout from './components/Layout';
-const ProductView = React.lazy(() => import('./pages/ProductView'));
+import React, { Suspense } from "react";
+import { Routes, Route } from "react-router-dom";
+import { Home, Error404 } from "./pages";
+import { Loader } from "./components/shared";
+import Layout from "./components/Layout";
+
+const ProductView = React.lazy(() => import("./pages/ProductView"));
 
 const AppWithRouting = () => {
   return (

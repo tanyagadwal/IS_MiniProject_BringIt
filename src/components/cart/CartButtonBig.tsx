@@ -1,7 +1,7 @@
-import { IoCaretForwardSharp } from 'react-icons/io5';
-import { useAppDispatch } from '../../hooks/useAppDispatch';
-import { useAppSelector } from '../../hooks/useAppSelector';
-import { showCart } from '../../store/ui';
+import { IoCaretForwardSharp } from "react-icons/io5";
+import { useAppDispatch } from "../../hooks/useAppDispatch";
+import { useAppSelector } from "../../hooks/useAppSelector";
+import { showCart } from "../../store/ui";
 
 const CartButtonBig = () => {
   const { billAmount, totalQuantity, totalAmount } = useAppSelector(
@@ -17,13 +17,13 @@ const CartButtonBig = () => {
       >
         <div className="flex flex-col">
           <span className="tracking-tight text-sm">
-            {totalQuantity} {totalQuantity > 1 ? 'items' : 'item'}
+            {totalQuantity} {totalQuantity > 1 ? "items" : "item"}
           </span>
           <span className="tracking-tight text-sm">
-            ₹{billAmount}{' '}
+            ₹{billAmount}{" "}
             <span className="text-xs font-normal">
               <del className="opacity-80">₹{totalAmount}</del> plus taxes
-            </span>{' '}
+            </span>{" "}
           </span>
         </div>
         <div className="ml-auto flex items-center font-bold">
