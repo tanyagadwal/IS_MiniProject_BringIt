@@ -10,6 +10,15 @@ import AddToCartButton from "../shared/AddToCartButton";
 import Misc from "../../lib/data/layout.json";
 import SuggestedItems from "./SuggestedItems";
 import { shuffleItems } from "../../utils/helper";
+import PaymentGateway from "../payment/PaymentGateway";
+
+// Payment data interface
+interface PaymentData {
+  paymentId: string;
+  method: string;
+  amount: number;
+  timestamp: string;
+}
 
 const ReviewPopup = ({
   onClose,
@@ -17,7 +26,7 @@ const ReviewPopup = ({
   isSubmitting,
 }: {
   onClose: () => void;
-  onSubmit: (review: string) => Promise<void>;
+  onSubmit: (review: string) => void; // Changed from Promise<void> to void
   isSubmitting: boolean;
 }) => {
   const [review, setReview] = useState("");
@@ -88,7 +97,7 @@ const CartPanelItem = (props: CartItem) => {
             )}
           </div>
           <div className="w-[90px]">
-            <AddToCartButton product={props.product} variant="small" />
+            <AddToCartButton product={props.product} />
           </div>
         </div>
       </div>
@@ -100,7 +109,9 @@ const CartPanel = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [showReviewPopup, setShowReviewPopup] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [showCartPanel, setShowCartPanel] = useState(true); 
+  const [reviewText, setReviewText] = useState("");
 
   const { totalAmount, totalQuantity, cartItems, billAmount, discount } =
     useAppSelector((state) => state.cart);
@@ -126,58 +137,168 @@ const CartPanel = () => {
     setShowReviewPopup(true);
   };
 
-  const handleReviewSubmit = async (review: string) => {
-    setIsSubmitting(true);
-    try {
-      // Save review to backend
-      const response = await fetch("http://localhost:5000/api/reviews", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+  // Simplified to directly open payment after review submission
+  const handleReviewSubmit = (review: string) => {
+    // Save review text
+    setReviewText(review);
+    // Close review popup and open payment gateway
+    setShowReviewPopup(false);
+    setShowCartPanel(false);
+    setIsCheckoutOpen(true);
+    
+    // Optional: Save review to backend asynchronously
+    fetch("http://localhost:5000/api/reviews", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        review,
+        orderDetails: {
+          items: cartItems,
+          total: billAmount,
         },
-        body: JSON.stringify({
-          review,
-          orderDetails: {
-            items: cartItems,
-            total: billAmount,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save review");
-      }
-
-      // Close cart and redirect to home
-      dispatch(hideCart());
-      navigate("/");
-    } catch (error) {
-      console.error("Error:", error);
-      // Optionally show error to user
-    } finally {
-      setIsSubmitting(false);
-    }
+      }),
+    }).catch(error => {
+      console.error("Error saving review:", error);
+    });
   };
+
+
+  // // Handle payment completion
+  // const handlePaymentComplete = (paymentData: PaymentData) => {
+  //   console.log('Payment successful:', paymentData);
+  //   console.log('Order review:', reviewText);
+    
+  //   // Here you can add logic to:
+  //   // 1. Save order to database with review and payment data
+  //   // 2. Clear cart
+  //   // 3. Navigate to success page
+    
+  //   dispatch(hideCart());
+  //   navigate("/order-success", { 
+  //     state: { 
+  //       paymentData,
+  //       review: reviewText,
+  //       orderDetails: {
+  //         items: cartItems,
+  //         total: billAmount
+  //       }
+  //     } 
+  //   });
+  // };
+
+  // Inside CartPanel.tsx
+const handlePaymentComplete = async (paymentData: PaymentData) => { // Make async
+  console.log('Payment successful:', paymentData);
+  console.log('Order review:', reviewText);
+
+  // --- TEMPORARY ADDITION FOR DEMO ---
+  try {
+      console.log('DEMO: Sending finalize order request...');
+      const response = await fetch('http://localhost:5000/api/finalize-order', { // Your backend endpoint
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              paymentId: paymentData.paymentId, // Send unique payment ID
+              review: reviewText,
+              // Include other necessary order details from cartItems, billAmount etc.
+              orderDetails: { 
+                 items: cartItems.map(i => ({id: i.product.id, qty: i.quantity})), 
+                 total: billAmount 
+              } 
+          })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Finalize order API failed');
+      console.log('DEMO: Finalize order response:', result);
+  } catch (error) {
+      console.error("DEMO: Error finalizing order:", error);
+      // Handle error - maybe show message to user? Don't proceed?
+      // For the demo, we might still proceed to show the replay later
+  }
+  // --- END OF TEMPORARY ADDITION ---
+
+  dispatch(hideCart());
+  navigate("/order-success", { /* ... state ... */ });
+};
+
+  // Handle payment cancellation
+  const handlePaymentCancel = () => {
+    setIsCheckoutOpen(false);
+    setShowCartPanel(true); // Show the cart panel again
+    // Return to cart view
+  };
+
+  // Calculate panel title based on state
+  const getPanelTitle = () => {
+    if (isCheckoutOpen) return "Checkout";
+    return `My Cart ${totalQuantity > 0 ? `(${totalQuantity})` : ""}`;
+  };
+
+
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Overlay - Clicking outside closes cart */}
+      {/* Overlay - Clicking outside closes current view */}
       <div
         className="absolute inset-0 bg-black bg-opacity-60"
-        onClick={() => dispatch(hideCart())}
+        onClick={() => {
+          if (isCheckoutOpen) {
+            setIsCheckoutOpen(false);
+            setShowCartPanel(true); 
+          } else if (showReviewPopup) {
+            setShowReviewPopup(false);
+          } else {
+            dispatch(hideCart());
+          }
+        }}
       />
 
-      {/* Cart Panel */}
-      <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl flex flex-col">
+      {/* Payment Gateway Overlay */}
+      {isCheckoutOpen && (
+        <div className="absolute z-40 inset-0 flex items-center justify-center">
+          <PaymentGateway
+            amount={billAmount}
+            deliveryFee={0} // Delivery fee is already included in billAmount
+            cartItems={cartItems.map(item => ({
+              id: item.product.id,
+              name: item.product.title,
+              price: item.product.price,
+              quantity: item.quantity
+            }))}
+            onPaymentComplete={handlePaymentComplete}
+            onCancel={handlePaymentCancel}
+          />
+        </div>
+      )}
+
+      {/* Review Popup */}
+      {showReviewPopup && (
+        <ReviewPopup
+          onClose={() => setShowReviewPopup(false)}
+          onSubmit={handleReviewSubmit}
+          isSubmitting={false}
+        />
+      )}
+
+      {/* Cart Panel - Only show when showCartPanel is true */}
+      {showCartPanel && (
+        <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl flex flex-col">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between z-10">
           <h2 className="text-xl font-extrabold text-gray-900">
-            My Cart ({totalQuantity})
+            {getPanelTitle()}
           </h2>
           <button
-            onClick={() => dispatch(hideCart())}
+            onClick={() => {
+              if (isCheckoutOpen) {
+                setIsCheckoutOpen(false);
+              } else {
+                dispatch(hideCart());
+              }
+            }}
             className="text-gray-500 hover:text-gray-700"
-            disabled={isSubmitting}
           >
             <IoClose size={24} />
           </button>
@@ -207,101 +328,102 @@ const CartPanel = () => {
         ) : (
           <>
             {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-4 p-4">
-                {/* Delivery Info */}
-                <div className="bg-white rounded-lg">
-                  <div className="flex flex-col px-4 pt-3 pb-1">
-                    <div className="flex justify-between text-gray-500 text-xs">
-                      <span>Shipment 1 of 1</span>
-                      <span>{totalQuantity} items</span>
-                    </div>
-                    <p className="text-sm font-medium text-gray-900 mt-1">
-                      Estimated delivery: 2-3 business days
-                    </p>
-                  </div>
-
-                  {/* Cart Items List */}
-                  <div className="divide-y divide-gray-100">
-                    {cartItems.map((item) => (
-                      <CartPanelItem key={item.product.id} {...item} />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Suggested Items */}
-                <div className="bg-white rounded-lg">
-                  <h3 className="font-bold text-lg px-4 pt-4 pb-2">
-                    Frequently bought together
-                  </h3>
-                  <div className="px-2 pb-4">
-                    <SuggestedItems items={suggestedProducts} />
-                  </div>
-                </div>
-
-                {/* Bill Summary */}
-                <div className="bg-white rounded-lg">
-                  <h3 className="font-bold text-lg px-4 pt-4 pb-2">
-                    Order Summary
-                  </h3>
-                  <div className="px-4 py-2 space-y-3 text-sm">
-                    <div className="flex justify-between text-gray-700">
-                      <span>Subtotal</span>
-                      <span>₹{totalAmount}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-700">
-                      <span>Discount</span>
-                      <span className="text-green-600">- ₹{discount}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-700">
-                      <div>
-                        <span>Delivery</span>
-                        <p className="text-green-600 text-xs">
-                          Free delivery on this order
-                        </p>
+            {!isCheckoutOpen && (
+              <div className="flex-1 overflow-y-auto">
+                <div className="space-y-4 p-4">
+                  {/* Delivery Info */}
+                  <div className="bg-white rounded-lg">
+                    <div className="flex flex-col px-4 pt-3 pb-1">
+                      <div className="flex justify-between text-gray-500 text-xs">
+                        <span>Shipment 1 of 1</span>
+                        <span>{totalQuantity} items</span>
                       </div>
-                      <span>
-                        <span className="text-gray-400 line-through mr-1">
-                          ₹40
-                        </span>
-                        <span className="text-green-600">FREE</span>
-                      </span>
+                      <p className="text-sm font-medium text-gray-900 mt-1">
+                        Estimated delivery: 2-3 business days
+                      </p>
                     </div>
-                    <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
-                      <span>Total</span>
-                      <span>₹{billAmount}</span>
+
+                    {/* Cart Items List */}
+                    <div className="divide-y divide-gray-100">
+                      {cartItems.map((item) => (
+                        <CartPanelItem key={item.product.id} {...item} />
+                      ))}
                     </div>
                   </div>
-                  <div className="px-4 py-3 bg-gray-50 text-xs text-gray-500 border-t border-gray-200">
-                    Apply promo codes at checkout
+
+                  {/* Suggested Items */}
+                  <div className="bg-white rounded-lg">
+                    <h3 className="font-bold text-lg px-4 pt-4 pb-2">
+                      Frequently bought together
+                    </h3>
+                    <div className="px-2 pb-4">
+                      <SuggestedItems topItems={suggestedProducts} />
+                    </div>
+                  </div>
+
+                  {/* Bill Summary */}
+                  <div className="bg-white rounded-lg">
+                    <h3 className="font-bold text-lg px-4 pt-4 pb-2">
+                      Order Summary
+                    </h3>
+                    <div className="px-4 py-2 space-y-3 text-sm">
+                      <div className="flex justify-between text-gray-700">
+                        <span>Subtotal</span>
+                        <span>₹{totalAmount}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>Discount</span>
+                        <span className="text-green-600">- ₹{discount}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <div>
+                          <span>Delivery</span>
+                          <p className="text-green-600 text-xs">
+                            Free delivery on this order
+                          </p>
+                        </div>
+                        <span>
+                          <span className="text-gray-400 line-through mr-1">
+                            ₹40
+                          </span>
+                          <span className="text-green-600">FREE</span>
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
+                        <span>Total</span>
+                        <span>₹{billAmount}</span>
+                      </div>
+                    </div>
+                    <div className="px-4 py-3 bg-gray-50 text-xs text-gray-500 border-t border-gray-200">
+                      Apply promo codes at checkout
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Checkout Footer */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
-              <button
-                onClick={handleProceedClick}
-                disabled={isSubmitting}
-                className="w-full bg-[#0c831f] text-white py-3 rounded-lg font-bold flex items-center justify-center hover:bg-green-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                <span>Proceed to Checkout</span>
-                <FiChevronRight className="ml-1" size={18} />
-              </button>
-            </div>
+            {!isCheckoutOpen && (
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+                <button
+                  onClick={handleProceedClick}
+                  className="w-full bg-[#0c831f] text-white py-3 rounded-lg font-bold flex items-center justify-center hover:bg-green-700 transition-colors"
+                >
+                  <div className="flex-1 text-center">
+                    <span>{totalQuantity} Items • ₹{billAmount}</span>
+                    <del className="text-sm ml-1 opacity-75">₹{totalAmount}</del>
+                  </div>
+                  <div className="flex items-center">
+                    <span>Proceed</span>
+                    <FiChevronRight className="ml-1" size={18} />
+                  </div>
+                </button>
+              </div>
+            )}
           </>
         )}
-
-        {/* Review Popup */}
-        {showReviewPopup && (
-          <ReviewPopup
-            onClose={() => setShowReviewPopup(false)}
-            onSubmit={handleReviewSubmit}
-            isSubmitting={isSubmitting}
-          />
-        )}
-      </aside>
+        </aside>
+      )}
     </div>
   );
 };

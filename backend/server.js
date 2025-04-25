@@ -116,3 +116,35 @@ app.post("/api/login", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+
+// In your backend server file (e.g., server.js)
+// Make sure body-parser or express.json() middleware is used
+
+// In-memory store for demo purposes ONLY. Use a database in reality!
+const finalizedOrders = new Set(); 
+
+app.post('/api/finalize-order', (req, res) => {
+    const { paymentId, orderDetails, review } = req.body;
+
+    console.log(`Received finalize request for Payment ID: ${paymentId}`);
+
+    // !!! VULNERABILITY !!! 
+    // A real application MUST check if this paymentId/order was already processed.
+    // Example check (DISABLED FOR DEMO):
+    // if (finalizedOrders.has(paymentId)) {
+    //   console.log(`Order for Payment ID: ${paymentId} already finalized. Ignoring replay.`);
+    //   // Return success (idempotency) even if already processed
+    //   return res.status(200).json({ message: 'Order already finalized' }); 
+    // }
+
+    // Simulate finalizing the order (e.g., save to DB, reduce stock)
+    console.log(`!!! PROCESSING order for Payment ID: ${paymentId} !!!`);
+    console.log('Order Details:', orderDetails);
+    console.log('Review:', review);
+    finalizedOrders.add(paymentId); // Mark as processed (for demo tracking)
+
+    // Simulate saving to DB, etc.
+
+    res.status(200).json({ message: `Order finalized successfully for Payment ID: ${paymentId}` });
+});
